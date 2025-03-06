@@ -19,6 +19,23 @@ using namespace patch_sm;
 #define DRY_SLIDER ADC_11
 #define DELAY_SLIDERS ADC_12
 
+// Timo add start
+#define EXP2_CV  CV_4
+#define EXP3_CV  CV_5
+#define EXP4_CV  CV_6
+#define EXP5_CV  CV_7
+
+
+// EXP1 = Gate in 1 (B10)  -> hw.gate_in_1.State());
+// EXP2 = CV4  hw.GetAdcValue(CV_4) 
+// EXP3 = CV5
+// EXP4 = CV6
+// EXP5 = CV7
+// EXP6 = CV out 1 (C10)
+// EXP7 = CV out 2 (C1) 
+// Timo add end
+
+
 namespace oam
 {
 namespace time_machine

@@ -1,5 +1,6 @@
 #include "daisysp.h"
 #include "biquad.h"
+#include "smrbpf.h"
 
 int wrap_buffer_index(int x, int size) {
     while(x >= size) x -= size;
@@ -75,6 +76,17 @@ float spread(float x, float s, float e=2.5) {
         return x;
     }
 }
+
+//Timo add start
+float mtof(float note)
+{
+    //range 0..136
+    return (440. * exp(.057762265 * (note - 69.)));
+  
+}
+
+//Timo add end
+
 
 class PreciseSlew
 {
@@ -205,6 +217,11 @@ public:
 class ReadHead {
 public:
     LoudnessDetector loudness;
+    // Timo add start
+    Biquad filter;
+    tr_smrbpf_filter smrbpf;
+    int filterType=0;
+    // Timo add end
     float* buffer;
     int bufferSize;
     float delayA = 0.0;
@@ -217,25 +234,42 @@ public:
     float phase = 1.0;
     float delta;
     float blurAmount;
+    float stereoOffset=0;
     void Init(float sampleRate, float* buffer, int bufferSize) {
         this->sampleRate = sampleRate;
         this->delta = 5.0 / sampleRate;
         this->buffer = buffer;
         this->bufferSize = bufferSize;
         this->blurAmount = 0.0;
+        
     }
-    void Set(float delay, float amp, float blur = 0) {
+    void Set(float delay, float amp, float blur = 0, float stereo=0) { //Timo add stereo
         this->targetDelay = delay;
         this->targetAmp = amp;
         this->blurAmount = blur;
+        this->stereoOffset = stereo; 
     }
+    // Timo add start
+    void SetFilter(int type, double Freq, double Q) 
+    {
+        this->filterType=type;
+        if ((type>0)&& (type<4))
+        {
+            this->filter.setBiquad(type-1, Freq/this->sampleRate, Q*10+0.7,0);
+        }
+        else if (type==4)
+        {
+            this->smrbpf.set(Freq,Q);
+        }
+    }
+    // Timo add end
     float Process(float writeHeadPosition) {
         if(phase >= 1.0 && (targetDelay >= 0.0 || targetAmp > 0.0)) {
             delayA = delayB;
             delayB = targetDelay;
             targetDelay = -1.0;
             ampA = ampB;
-            ampB = targetAmp;
+            ampB = std::max(0.f,targetAmp-stereoOffset);//Timo add stereoOffset
             targetAmp = -1.0;
             phase = 0.0;
             delta = (5.0 + daisy::Random::GetFloat(-blurAmount, blurAmount)) / sampleRate;
@@ -245,6 +279,13 @@ public:
         float output = ((1 - phase) * outputA) + (phase * outputB);
         float outputAmp = ((1 - phase) * ampA) + (phase * ampB);
         phase = phase <= 1.0 ? phase + delta : 1.0;
+        if ((this->filterType>0) && (this->filterType<4))
+        {
+            output= this->filter.process(output);// Timo add 
+            if (this->filterType==3) output*=4.0;//Timo add, increase volume for bandpass mode
+        }
+        else if (this->filterType==4) output=this->smrbpf.perform(output);
+        
         return loudness.Process(output) * outputAmp;
     }
 };
@@ -269,6 +310,14 @@ public:
     Limiter feedbackLimiter;
     UltraSlowDCBlocker dcblk;
     daisysp::Compressor compressor;
+
+    float StereoVal=0.;
+
+    UltraSlowDCBlocker dcblk2; //Timo add: for pseudostereo operation
+    daisysp::Compressor compressor2;//Timo add: for pseudostereo operation
+    Limiter outputLimiter2;//Timo add: for pseudostereo operation
+
+    
     float (*blurFunc)(float, float) = nullptr;
     void Init(float sampleRate, float maxDelay, float* buffer) {
 		this->sampleRate = sampleRate;
@@ -285,20 +334,32 @@ public:
         feedbackLimiter.Init(sampleRate);
         blurFunc = defaultBlurFunc;
         loudness.Init();
+        
+        
         compressor.Init(sampleRate);
         compressor.SetAttack(0.02);
         compressor.SetRelease(0.2);
         compressor.SetRatio(5.0);
         compressor.SetThreshold(0.0);
+
+        //Timo add: for pseudostereo operation
+        compressor2.Init(sampleRate);
+        compressor2.SetAttack(0.02);
+        compressor2.SetRelease(0.2);
+        compressor2.SetRatio(5.0);
+        compressor2.SetThreshold(0.0);
+        outputLimiter2.Init(sampleRate);
     }
-    void Set(float dryAmp, float feedback, float blur=0.0) {
+    void Set(float dryAmp, float feedback, float blur=0.0, float StereoVal=0.0) {
         this->dryAmp = dryAmp;
         this->feedback = feedback;
         this->blur = blur;
+        this->StereoVal=StereoVal;
     }
     void SetBlurFunc(float (*f)(float, float)) {
         blurFunc = f;
     }
+    
     float Process(float in) {
         float out = 0;
 
@@ -318,24 +379,100 @@ public:
 
         return out;
     }
+
+
+    void Process2(float inL, float inR, float *outLptr, float *outRptr) //Timo add: for pseudostereo operation
+    {
+        float out = 0, outL=0, outR=0, outTap=0,expStereoValLeft,expStereoValRight;
+
+        float ampCoef = 0.0;
+        for(int i=0; i<8; i++) ampCoef += readHeads[i].targetAmp;
+        ampCoef = ampCoefSlew.Process(1.0 / std::max(1.0f, ampCoef));
+
+        buffer[writeHeadPosition] = loudness.Process((inL+inR)*0.707);
+        
+        for(int i=0; i<8; i++)
+        {
+            expStereoValLeft=1-((i%2)*StereoVal); //Timo add
+            expStereoValRight=1-(((i+1)%2)*StereoVal); //Timo add
+
+            outTap=readHeads[i].Process(writeHeadPosition);
+            outL+=outTap*expStereoValLeft;
+            outR+=outTap*expStereoValRight;
+        } 
+
+
+        outL = dcblk.Process(outL);
+        outR = dcblk2.Process(outR);
+        outL = compressor.Process(outL, buffer[writeHeadPosition] + outL);
+        outR = compressor2.Process(outR, buffer[writeHeadPosition] + outR);
+
+        out=(outL+outR)*0.707;
+        buffer[writeHeadPosition] = -(feedbackLimiter.Process(buffer[writeHeadPosition] + (out * feedbackSlew.Process(feedback) * ampCoef)));
+        outL = outputLimiter.Process(outL + inL * dryAmpSlew.Process(dryAmp));
+        outR = outputLimiter2.Process(outR + inR * dryAmpSlew.Process(dryAmp));
+        writeHeadPosition = wrap_buffer_index(writeHeadPosition + 1, bufferSize);
+
+        *outLptr=outL;
+        *outRptr=outR;
+    }
+
+ 
 };
 
 class StereoTimeMachine {
 public:
     TimeMachine timeMachineLeft;
     TimeMachine timeMachineRight;
+    int filterType=0;//add 0=off, 1=lpf, 2=hpf,3=bpf
     float outputs[2];
     void Init(float sampleRate, float maxDelay, float* bufferLeft, float* bufferRight) {
         timeMachineLeft.Init(sampleRate, maxDelay, bufferLeft);
         timeMachineRight.Init(sampleRate, maxDelay, bufferRight);
     }
-    void Set(float dryAmp, float feedback, float blur=0.0) {
-        timeMachineLeft.Set(dryAmp, feedback, blur);
-        timeMachineRight.Set(dryAmp, feedback, blur);
+    void Set(float dryAmp, float feedback, float blur=0.0, float stereoval=0.0) {
+        timeMachineLeft.Set(dryAmp, feedback, blur,stereoval);
+        timeMachineRight.Set(dryAmp, feedback, blur,stereoval);
     }
+    // Timo add start
+    void resetSmrFilter()
+    {
+        for(int i=0; i<8; i++)
+        {
+            timeMachineLeft.readHeads[i].smrbpf.clear();
+        }
+    }
+
+    void SetFilters(float start, float end, float q, int type)
+    {
+        float freq=0;
+        filterType=type;
+        for(int i=0; i<8; i++)
+        {
+            if(type==0) 
+            {
+                timeMachineLeft.readHeads[i].SetFilter(type,0,0); //skip expensive mtof if filter is off
+            }
+            else 
+            {
+                freq= mtof(( (end-start)/7.*i+start)*136.0);//only calculate once
+                timeMachineLeft.readHeads[i].SetFilter(type,freq,q); 
+            }
+        } 
+    }
+     // Timo add end
+
     float* Process(float inLeft, float inRight) {
-        outputs[0] = timeMachineLeft.Process(inLeft);
-        outputs[1] = timeMachineRight.Process(inRight);
+        if (filterType==0) //Timo add
+        {
+            outputs[0] = timeMachineLeft.Process(inLeft);
+            outputs[1] = timeMachineRight.Process(inRight); 
+        }
+        else
+        {
+            timeMachineLeft.Process2(inLeft,inRight,&(outputs[0]),&(outputs[1]));//Timo add
+        }
+        
         return outputs;
     }
 };
@@ -353,7 +490,7 @@ public:
   }
   void Init(int sr) { sampleRate = sr; }
   bool isStale() {
-    return samplesSinceLastClock > sampleRate * 2;
+    return samplesSinceLastClock > sampleRate * 4;//Timo change, was 2
   }
   float GetInterval() {
     float interval = lastIntervalInSamples / sampleRate;
