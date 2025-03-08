@@ -1,0 +1,12 @@
+Quantity,Value,Name,RefDes
+8,,thonkiconn jacks,"clock, feedback1, IN1, IN2, OUT1, OUT2, spread1, time1"
+3,B10k,9mm potentiometers and fitting (slim) knobs,"Feedback, Spread, Time"
+1,,"2x5 smd power header (I use unshrouded, easier to solder)",Power
+9,B10k,"20mm faders with led, I used RA2045F-20R-15LC-B10K-C (Thonk)","SLIDE1, SLIDE2, SLIDE3, SLIDE4, SLIDE5, SLIDE6, SLIDE7, SLIDE8, SLIDE9"
+1,,"Daisy patch submodule, 65MB version",U1
+1,,"2x4 2.54mm male pinheader, through hole",U3
+4,,"2x4 2.54mm female  pinheader smd, ",
+1,,"1x3  2.54mm male pinheader, through hole",U4
+1,100n,"capacitor x7r, 0603 (included in pcba)",C1
+9,1k,"resistor 1%, 0603  (included in pcba)","R1, R2, R3, R4, R5, R6, R7, R8, R9"
+1,,CD4051BM/TR or similar (soic 16)  (included in pcba),U2

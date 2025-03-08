@@ -2,7 +2,7 @@
 
 This repo is a fork of the original Time Machine module by Olivia Artz Modular.
 
-This one will soon contain the free production files for my slim version of the Time Machine. You can order the boards at your favorite pcb house, bom and pnp files are also available to have the smd components pre-populated. Please be aware that the original license applies, you cannot make and sell the module or pcbs for profit.
+This contains the free production files for my slim version of the Time Machine. You can order the boards at your favorite pcb house, bom and pnp files are also available to have the smd components pre-populated. Please be aware that the original license applies, you cannot make and sell the module or pcbs for profit.
 
 And it also contains the firmware and info for the expander that I developed, see below. This expander can be bought from [**me**](https://www.timorozendal.com/tm "me"), either in built (80 euro) or kit (50 euro) form.
 
@@ -21,3 +21,7 @@ Notes:
 - with filters off: button long press selects stereo mode B (mode led turns on)
 - with bandpass selected: button long press selects the 4ms SMR bandpass mode (mode led turns on)
 
+## Build Guides
+
+- [build guide for the Time Machine](https://docs.google.com/document/d/1G_HOQXmf1HoXMm5cSpaifYvIs_M4wRFkRdWh4EDtrFA/edit?usp=sharing "build guide for the Time Machine")
+- [build guide for the Expander](https://docs.google.com/document/d/1udGyIOVuIUEM14i1okJZ_7YuLo60VQ1YnfsVe5B10nA/edit?usp=sharing "build guide for the Expander")
