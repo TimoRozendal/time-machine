@@ -21,6 +21,8 @@ Notes:
 - with filters off: button long press selects stereo mode B (mode led turns on)
 - with bandpass selected: button long press selects the 4ms SMR bandpass mode (mode led turns on)
 
+> I dont have a demo yet, but there are a few previews here in this [instagram highlight](https://www.instagram.com/stories/highlights/18056328476151964/ "instagram highlight")
+
 ## Build Guides
 
 - [build guide for the Time Machine](https://docs.google.com/document/d/1G_HOQXmf1HoXMm5cSpaifYvIs_M4wRFkRdWh4EDtrFA/edit?usp=sharing "build guide for the Time Machine")
