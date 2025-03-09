@@ -20,6 +20,13 @@ Notes:
 - this also means that stereo mode B is not possible when filters are on.
 - with filters off: button long press selects stereo mode B (mode led turns on)
 - with bandpass selected: button long press selects the 4ms SMR bandpass mode (mode led turns on)
+- cv input range is 0..5V, but it is summed with the knob that also goes from 0..5V. So if the knob is max (5V) you need a negative voltage 0..-5V to cover the whole range
+
+About Feedback and Resonance:
+- resonance is basically the feedback of a filter
+- the way feedback works with the time machine currently means that the echo that feedbacks is added at the same tap
+- this means that increasing the feedback of the time machine with filters with some resonance will increase the resonance even more
+- conclusion: be very careful with the feedback when you are using filters with resonance
 
 > I dont have a demo yet, but there are a few previews here in this [instagram highlight](https://www.instagram.com/stories/highlights/18056328476151964/ "instagram highlight")
 
