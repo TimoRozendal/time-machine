@@ -6,6 +6,10 @@ This contains the free production files for my slim version of the Time Machine.
 
 And it also contains the firmware and info for the expander that I developed, see below. This expander can be bought from [**me**](https://www.timorozendal.com/tm "me"), either in built (80 euro) or kit (50 euro) form.
 
+**For the expander to work you need to update the firmware of the Time Machine,[ see  here for the latest version and instructions](https://github.com/timorozendal/time-machine/releases " see  here for the latest version and instructions")**
+Connecting the expansion cable:  the G on the expansion should match the G on the Time Machine itself. I use the red line on the cable to indicate that. (see also [last pictures in the Build Guide](https://docs.google.com/document/d/1udGyIOVuIUEM14i1okJZ_7YuLo60VQ1YnfsVe5B10nA/edit?tab=t.0 "last pictures in the Build Guide"))
+
+
 ## Expander
 
 The active expander adds:
