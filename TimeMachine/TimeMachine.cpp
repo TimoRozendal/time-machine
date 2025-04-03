@@ -1,5 +1,7 @@
 
 
+//#define REVERSESLIDERS 
+
 
 //task build_and_program_dfu
 #include "daisy_patch_sm.h"
@@ -42,6 +44,8 @@ float DSY_SDRAM_BSS bufferLeft[48000 * TIME_SECONDS + BUFFER_WIGGLE_ROOM_SAMPLES
 float DSY_SDRAM_BSS bufferRight[48000 * TIME_SECONDS + BUFFER_WIGGLE_ROOM_SAMPLES];
 
 TimeMachineHardware hw;
+
+
 PersistentStorage<CalibrationData> CalibrationDataStorage(hw.qspi);
 GateIn gate;
 Led leds[9];
@@ -108,6 +112,7 @@ bool expLedFlip=false;
 int debugPrintCounter=0;
 uint32_t now=0;
 uint32_t elapsed=0;
+float ledvalues[9];
 // Timo add end
 
 // calibration offsets for CV
@@ -135,7 +140,7 @@ void AudioCallback(AudioHandle::InputBuffer in, AudioHandle::OutputBuffer out, s
 {
 	// cpu meter measurements start
 	cpuMeter.OnBlockStart();
-	//elapsed= size;
+	elapsed= size;
 	now=System::GetNow();
 	droppedFrames++;
 
@@ -233,8 +238,11 @@ void AudioCallback(AudioHandle::InputBuffer in, AudioHandle::OutputBuffer out, s
 	feedbackCv = clamp(hw.GetAdcValue(FEEDBACK_CV) - feedbackCvOffset, -1, 1);
 	skewCv = clamp(hw.GetAdcValue(SKEW_CV) - skewCvOffset, -1, 1);
 
+	#ifdef REVERSESLIDERS
+	drySlider = minMaxSlider(hw.GetAdcValue(DRY_SLIDER));
+	#else
 	drySlider = minMaxSlider(1.0 - hw.GetAdcValue(DRY_SLIDER));
-
+	#endif
 
 	//TIMO TODO: calculate two time values in time offset case L and R
 
@@ -295,19 +303,22 @@ void AudioCallback(AudioHandle::InputBuffer in, AudioHandle::OutputBuffer out, s
 			float loudness = timeMachine.timeMachineLeft.readHeads[i].loudness.Get();
 			if (expFiltState==expFiltStateOff) loudness = max(loudness, timeMachine.timeMachineRight.readHeads[i].loudness.Get());
 			if(setLeds) {
-				leds[i+1].Set(loudness);
-				leds[i+1].Update();
+				ledvalues[i+1]=loudness;
+				
+				//leds[i+1].Update();
 			}
 		} else {
 			// set LEDs based on loudness for first slider
 			float loudness = timeMachine.timeMachineLeft.loudness.Get();
 			if (expFiltState==expFiltStateOff) loudness = max(loudness, timeMachine.timeMachineRight.loudness.Get());
 			if(setLeds) {
-				leds[0].Set(loudness);
-				leds[0].Update();
+				//leds[0].Set(loudness);
+				ledvalues[0]=loudness;
+				//leds[0].Update();
 			}
 		}
 	}
+	
     
 	timeMachine.SetFilters(exp3CV,exp4CV,exp5CV,expFiltState+expFiltSMR);//Timo add
 	//timeMachine.SetFilters(0.9,0.05,0.2,expFiltState);//Timo TEST add
@@ -323,20 +334,36 @@ void AudioCallback(AudioHandle::InputBuffer in, AudioHandle::OutputBuffer out, s
 			// let last 8 slider time/amp/blur values for left channel time machine instance
 			if(expStereoMode==expStereoPanMode) expStereoValLeft=(i%2)*exp2CV; //Timo add
 			else expStereoValLeft=0;
+			#ifdef REVERSESLIDERS
+			timeMachine.timeMachineLeft.readHeads[i-1].Set(
+				spread((i / 8.0), distribution) * time,
+				max(0.0f, minMaxSlider(hw.GetSliderValue(i))),  
+				max(0., feedback-1.0),expStereoValLeft //Timo add expStereoValLeft
+			);
+			#else
 			timeMachine.timeMachineLeft.readHeads[i-1].Set(
 				spread((i / 8.0), distribution) * time,
 				max(0.0f, minMaxSlider(1.0f - hw.GetSliderValue(i))),  
 				max(0., feedback-1.0),expStereoValLeft //Timo add expStereoValLeft
 			);
+			#endif
 			// let last 8 slider time/amp/blur values for right channel time machine instance
 			if(expStereoMode==expStereoPanMode)expStereoValRight=((i+1)%2)*exp2CV; //Timo add
 			else expStereoValRight=0;
 			
+			#ifdef REVERSESLIDERS
+			timeMachine.timeMachineRight.readHeads[i-1].Set(
+				spread((i / 8.0), distribution) * time2,  //Timo add: time->time2 to allow stereo offset mode
+				max(0.0f, minMaxSlider(hw.GetSliderValue(i))),
+				max(0., feedback-1.0),expStereoValRight  //Timo add expStereoValRight
+			);
+			#else
 			timeMachine.timeMachineRight.readHeads[i-1].Set(
 				spread((i / 8.0), distribution) * time2,  //Timo add: time->time2 to allow stereo offset mode
 				max(0.0f, minMaxSlider(1.0f - hw.GetSliderValue(i))),
 				max(0., feedback-1.0),expStereoValRight  //Timo add expStereoValRight
 			);
+			#endif	
 			
 		}
 	}
@@ -344,12 +371,19 @@ void AudioCallback(AudioHandle::InputBuffer in, AudioHandle::OutputBuffer out, s
 	{
 		for(int i=1; i<9; i++) {
 			// let last 8 slider time/amp/blur values for left channel time machine instance
+			#ifdef REVERSESLIDERS
+			timeMachine.timeMachineLeft.readHeads[i-1].Set(
+				spread((i / 8.0), distribution) * time,
+				max(0.0f, minMaxSlider(hw.GetSliderValue(i))), 
+				max(0., feedback-1.0)
+			);
+			#else
 			timeMachine.timeMachineLeft.readHeads[i-1].Set(
 				spread((i / 8.0), distribution) * time,
 				max(0.0f, minMaxSlider(1.0f - hw.GetSliderValue(i))), 
 				max(0., feedback-1.0)
 			);
-			
+			#endif
 		}
 	}
 	
@@ -443,6 +477,7 @@ int main(void)
 	CalibrationDataStorage.GetSettings();
 	CalibrationData &savedCalibrationData = CalibrationDataStorage.GetSettings();
 
+	hw.SetAudioBlockSize(8);//TIMO test add
 	// init cpu meter
 	cpuMeter.Init(hw.AudioSampleRate(), hw.AudioBlockSize());
 
@@ -516,7 +551,8 @@ int main(void)
 
 	while(1) {
 
-		if (debugPrintCounter>50)
+		
+		if (debugPrintCounter>50000)
 		{
 			debugPrintCounter=0;
 		
@@ -557,8 +593,11 @@ int main(void)
 		}
 
 		hw.PrintLine("");
-		}
-		System::Delay(5);
+		
+		}  
+		
+		//System::Delay(5);
+		
 		 if(expLedFlip)
 		{
 			if( (expFiltState== expFiltStateHigh)||(expFiltState== expFiltStateBand))hw.WriteCvOut(2,0);
@@ -576,6 +615,16 @@ int main(void)
 		else hw.WriteCvOut(1,0);
 
     	expLedFlip=!expLedFlip;
+		
 		debugPrintCounter++;
+		if(setLeds)
+		{	for(int i=0; i<9; i++)
+			{ 
+				leds[i].Set(ledvalues[i]);
+				leds[i].Update();
+			}
+		}
+
+		
 	}
 }
