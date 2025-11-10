@@ -8,7 +8,7 @@ And it also contains the firmware and info for the expander that I developed, se
 
 **For the expander to work you need to update the firmware of the Time Machine,[ see  here for the latest version and instructions](https://github.com/timorozendal/time-machine/releases " see  here for the latest version and instructions")**
 
-Connecting the expansion cable:  the G on the expansion should match the G on the Time Machine itself. I use the red line on the cable to indicate that. (see also [last pictures in the Build Guide](https://docs.google.com/document/d/1udGyIOVuIUEM14i1okJZ_7YuLo60VQ1YnfsVe5B10nA/edit?tab=t.0 "last pictures in the Build Guide"))
+Connecting the expansion cable:  the G on the expansion should match the G on the Time Machine itself. I use the red line on the cable to indicate that. (see also [last pictures in the Build Guide](https://docs.google.com/document/d/1udGyIOVuIUEM14i1okJZ_7YuLo60VQ1YnfsVe5B10nA/edit?tab=t.0 "last pictures in the Build Guide")) On the Tiny Time Machine there is no G in indicator, in stead align the red line on the cable with the 7-8 part of the connector.
 
 
 ## Expander
